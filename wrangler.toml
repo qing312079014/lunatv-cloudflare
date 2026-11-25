@@ -10,11 +10,11 @@ minify = true
 directory = ".open-next/assets"
 binding = "ASSETS"
 
-# D1：先在控制台或 `wrangler d1 create lunatv` 创建，再把 database_id 填进来
+# D1：控制台创建库后把 database_id 填进来
 [[d1_databases]]
 binding = "DB"
-database_name = "lunatv"
-database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+database_name = "moontv"
+database_id = "ed9fa12d-9fb5-40b5-834b-ae123c3f4f08"
 
 # 每日刷新收藏 / 直播源，和原 vercel.json 的 "0 1 * * *" 对齐
 [triggers]

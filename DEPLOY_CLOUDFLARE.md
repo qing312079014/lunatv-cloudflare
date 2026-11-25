@@ -86,7 +86,7 @@ wrangler login
 ### 1. 创建 D1 数据库
 
 ```powershell
-wrangler d1 create lunatv
+wrangler d1 create moontv
 ```
 
 输出里会有一行 `database_id = "xxxxxxxx-xxxx-..."`，把它填进 `wrangler.toml`：
@@ -94,20 +94,20 @@ wrangler d1 create lunatv
 ```toml
 [[d1_databases]]
 binding = "DB"
-database_name = "lunatv"
+database_name = "moontv"
 database_id = "这里替换成你的 id"
 ```
 
 ### 2. 建表
 
 ```powershell
-wrangler d1 execute lunatv --remote --file=./migrations/0001_init.sql
+wrangler d1 execute moontv --remote --file=./migrations/0001_init.sql
 ```
 
 验证：
 
 ```powershell
-wrangler d1 execute lunatv --remote --command "SELECT name FROM sqlite_master WHERE type='table'"
+wrangler d1 execute moontv --remote --command "SELECT name FROM sqlite_master WHERE type='table'"
 ```
 
 应看到 `users`、`play_records`、`favorites`、`search_history`、`skip_configs`、`admin_config`。
@@ -270,7 +270,7 @@ curl "https://<your-db>.upstash.io/hgetall/u:<username>:pr" \
 
 ```powershell
 wrangler tail            # 实时日志
-wrangler d1 execute lunatv --remote --command "SELECT COUNT(*) FROM play_records"
+wrangler d1 execute moontv --remote --command "SELECT COUNT(*) FROM play_records"
 ```
 
 ---
