@@ -293,4 +293,4 @@ MoonTVPlus 是 MoonTV 的「大而全」分支（弹幕、漫画、音乐、网�
 2. 上游如果给 `IStorage` 加了新方法，`d1.db.ts` 会编译报错 —— 按报错补对应 SQL；
 3. 上游如果加了新表字段，在 `migrations/` 下新增 `0002_xxx.sql`，然后 `wrangler d1 execute ... --file` 执行。
 
-部署脚本（GitHub Actions）见 `.github/workflows/deploy-cloudflare.yml`（可选，配好 secrets 后可一键部署）。
+部署自动化：Cloudflare 控制台的 Workers Builds 会在每次 push 时自动重新构建，无需额外配置 GitHub Actions。
