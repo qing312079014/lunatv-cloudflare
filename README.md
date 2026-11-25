@@ -23,7 +23,7 @@
 - 🔍 **多源聚合搜索**：一次搜索立刻返回全源结果。
 - 📄 **丰富详情页**：支持剧集列表、演员、年份、简介等完整信息展示。
 - ▶️ **流畅在线播放**：集成 HLS.js & ArtPlayer。
-- ❤️ **收藏 + 继续观看**：支持 Kvrocks/Redis/Upstash 存储，多端同步进度。
+- ❤️ **收藏 + 继续观看**：支持 Cloudflare D1 / Kvrocks / Redis / Upstash 存储，多端同步进度。
 - 📱 **PWA**：离线缓存、安装到桌面/主屏，移动端原生体验。
 - 🌗 **响应式布局**：桌面侧边栏 + 移动底部导航，自适应各种屏幕尺寸。
 - 👿 **智能去广告**：自动跳过视频中的切片广告（实验性）。
@@ -47,8 +47,8 @@
 
 - [技术栈](#技术栈)
 - [部署](#部署)
-  - [一键部署](#zeabur-一键部署)
-  - [Docker 部署](#Kvrocks-存储推荐)
+  - [Cloudflare Workers + D1（推荐）](#cloudflare-workers--d1推荐)
+- [上游原版 Docker 方案](#上游原版-docker-方案不适用于本仓库)
 - [配置文件](#配置文件)
 - [订阅](#订阅)
 - [自动更新](#自动更新)
@@ -69,11 +69,82 @@
 | 语言      | TypeScript 4                                                                                          |
 | 播放器    | [ArtPlayer](https://github.com/zhw2590582/ArtPlayer) · [HLS.js](https://github.com/video-dev/hls.js/) |
 | 代码质量  | ESLint · Prettier · Jest                                                                              |
-| 部署      | Docker                                                                    |
+| 部署      | Cloudflare Workers（OpenNext）· Docker                                     |
+| 存储      | Cloudflare D1 · Kvrocks · Redis · Upstash                                  |
 
 ## 部署
 
-本项目**仅支持 Docker 或其他基于 Docker 的平台** 部署。
+本仓库是 [MoonTechLab/LunaTV](https://github.com/MoonTechLab/LunaTV) 的 **Cloudflare 改造版**，新增 D1 存储实现，可直接跑在 Cloudflare Workers 上，数据也全部存在 Cloudflare。推荐优先使用下面的 Cloudflare 方案；Docker / Zeabur / Kvrocks / Redis / Upstash 等上游原版方式仍然保留，但**不适用于本仓库的代码**（本仓库未适配 standalone 输出）。
+
+### Cloudflare Workers + D1（推荐）
+
+**前置**：Cloudflare 账号、Node 18+、pnpm 9+
+
+**1. 建库并填 ID**
+
+控制台 → **Workers & Pages → D1 SQL Database → Create**，名称填 `moontv`。创建后复制 Database ID，写进 `wrangler.toml`：
+
+```toml
+[[d1_databases]]
+binding = "DB"
+database_name = "moontv"
+database_id = "你的-database-id"
+```
+
+**2. 建表**
+
+```bash
+npx wrangler login
+npx wrangler d1 execute moontv --remote --file=./migrations/0001_init.sql --yes
+```
+
+> 这条命令在**本地终端**执行。别把整行粘到 Cloudflare 网页的 D1 Console 里，那里只认 SQL，会报 `near "wrangler": syntax error`。
+
+**3. 构建并部署**
+
+```bash
+pnpm install
+pnpm build:cloudflare    # 内含 --dangerouslyUseUnsupportedNextVersion，见下方说明
+npx wrangler deploy
+```
+
+**4. 设置站长账号**
+
+```bash
+npx wrangler secret put USERNAME
+npx wrangler secret put PASSWORD
+```
+
+部署完成后用这组账号登录，角色为 `owner`。首次访问会自动写入默认站点配置。
+
+**5. 可选：接 GitHub 自动部署**
+
+控制台 → Workers & Pages → Create → Workers → **Connect to Git**，选本仓库，构建配置：
+
+| 字段 | 值 |
+| --- | --- |
+| Project name | `lunatv`（必须与 `wrangler.toml` 的 `name` 一致） |
+| Build command | `pnpm build:cloudflare` |
+| Deploy command | `npx wrangler deploy` |
+| Root directory | `/` |
+| 环境变量 | `NODE_VERSION=22`、`PNPM_VERSION=10` |
+
+**四个必读的坑**
+
+| 现象 | 原因与解法 |
+| --- | --- |
+| 登录偶发 `Error 1101` | `src/lib/password.ts` 用 scrypt（N=16384），单次 30–80ms CPU，免费版 10ms/请求限额扛不住。升级 Workers Paid（$5/月）或把哈希换成 PBKDF2 |
+| 构建报 `Next.js version ... unsupported` | Next 14.2 已过 OpenNext 支持期，必须带 `--dangerouslyUseUnsupportedNextVersion`（`build:cloudflare` 脚本已内置） |
+| 部署后页面 500 / `no such table` | 忘了执行第 2 步建表，或 Worker 的 `DB` binding 指向了别的库 |
+| 改了代码但存储类型没生效 | `NEXT_PUBLIC_STORAGE_TYPE` 是**构建期内联**的，只能在 `build:cloudflare` 脚本里注入，运行时改环境变量无效 |
+
+免费额度参考：Worker 3 MB（gzip）、D1 5 GB 存储 / 10 万行写入/天。实测产物 gzip 后 **1.16 MB**，但播放进度保存会计入写入量，前端已做 20 秒节流。
+
+完整步骤、成本表、排错表见 **[DEPLOY_CLOUDFLARE.md](./DEPLOY_CLOUDFLARE.md)**。
+
+## 上游原版 Docker 方案（不适用于本仓库）
+
+以下配置来自上游原版，镜像为 `ghcr.io/moontechlab/lunatv:latest`，**不是本仓库构建出来的产物**。如果你要用下面这些方式，请直接 clone [上游仓库](https://github.com/MoonTechLab/LunaTV)。
 
 ### zeabur 一键部署
 

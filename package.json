@@ -20,8 +20,8 @@
     "build:cloudflare": "cross-env BUILD_TARGET=cloudflare NEXT_PUBLIC_STORAGE_TYPE=d1 pnpm gen:manifest && cross-env BUILD_TARGET=cloudflare NEXT_PUBLIC_STORAGE_TYPE=d1 opennextjs-cloudflare build --dangerouslyUseUnsupportedNextVersion",
     "preview:cloudflare": "wrangler dev",
     "deploy:cloudflare": "wrangler deploy",
-    "db:init:local": "wrangler d1 execute lunatv --local --file=./migrations/0001_init.sql",
-    "db:init:remote": "wrangler d1 execute lunatv --remote --file=./migrations/0001_init.sql",
+    "db:init:local": "wrangler d1 execute moontv --local --file=./migrations/0001_init.sql",
+    "db:init:remote": "wrangler d1 execute moontv --remote --file=./migrations/0001_init.sql",
     "db:reset:local": "rimraf .wrangler/state/v3/d1 && pnpm db:init:local"
   },
   "dependencies": {

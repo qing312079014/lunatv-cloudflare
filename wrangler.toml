@@ -14,7 +14,7 @@ binding = "ASSETS"
 [[d1_databases]]
 binding = "DB"
 database_name = "moontv"
-database_id = "ed9fa12d-9fb5-40b5-834b-ae123c3f4f08"
+database_id = "6ca444dd-08bc-4fc1-9001-43e70a450364"
 
 # 每日刷新收藏 / 直播源，和原 vercel.json 的 "0 1 * * *" 对齐
 [triggers]
