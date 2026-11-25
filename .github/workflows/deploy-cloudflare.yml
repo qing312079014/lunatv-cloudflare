@@ -1,0 +1,58 @@
+name: Deploy to Cloudflare Workers
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Build & Deploy
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      # D1 的 database_id 不写死在仓库里，从 secrets 注入
+      - name: Inject D1 database id
+        run: |
+          if [ -z "${{ secrets.D1_DATABASE_ID }}" ]; then
+            echo "缺少 secrets.D1_DATABASE_ID"
+            exit 1
+          fi
+          sed -i "s/REPLACE_WITH_YOUR_D1_DATABASE_ID/${{ secrets.D1_DATABASE_ID }}/g" wrangler.toml
+
+      - name: Build for Cloudflare
+        run: pnpm build:cloudflare
+        env:
+          NEXT_PUBLIC_SITE_NAME: ${{ vars.NEXT_PUBLIC_SITE_NAME }}
+          NEXT_PUBLIC_DOUBAN_PROXY_TYPE: ${{ vars.NEXT_PUBLIC_DOUBAN_PROXY_TYPE }}
+          NEXT_PUBLIC_DOUBAN_IMAGE_PROXY_TYPE: ${{ vars.NEXT_PUBLIC_DOUBAN_IMAGE_PROXY_TYPE }}
+          NEXT_PUBLIC_SEARCH_MAX_PAGE: ${{ vars.NEXT_PUBLIC_SEARCH_MAX_PAGE }}
+
+      - name: Deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy
+          # USERNAME / PASSWORD 不在这里传，用 `wrangler secret put` 单独设置，
+          # 避免每次 CI 覆盖线上已有密钥。
